@@ -1194,7 +1194,7 @@
     .scroll-timeline { display: none; }
   }
   @media (min-width: 1201px) {
-    body { padding-left: 200px; }
+    body.has-timeline { padding-left: 200px; }
   }
   /* Active section always shows desc */
   .st-node.active .st-desc {
