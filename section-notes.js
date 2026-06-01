@@ -1,11 +1,16 @@
 (function () {
   var API_URL = "/api/section-notes";
   var PROFILE_KEY = "shf_notes_profile_v1";
+  var VISIBILITY_KEY = "shf_notes_visible_v1";
   var SECTION_SELECTOR = "main section[id], main .ax-section[id], main .dossier-section[id]";
   var notesStore = { version: 1, notes: {} };
   var profile = loadProfile();
-  var loginPill = null;
+  var dock = null;
+  var dockName = null;
+  var dockProfileButton = null;
+  var visibilitySwitch = null;
   var tools = [];
+  var notesVisible = loadVisibility();
   var sharedStatus = "loading";
   var sharedMessage = "Loading shared comments...";
 
@@ -18,11 +23,22 @@
     return null;
   }
 
+  function loadVisibility() {
+    return window.localStorage.getItem(VISIBILITY_KEY) !== "hidden";
+  }
+
   function saveProfile(nextProfile) {
     profile = nextProfile;
     window.localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-    updateLoginPill();
+    updateDock();
     tools.forEach(renderTool);
+  }
+
+  function setNotesVisible(isVisible) {
+    notesVisible = isVisible;
+    window.localStorage.setItem(VISIBILITY_KEY, isVisible ? "visible" : "hidden");
+    document.documentElement.classList.toggle("shf-notes-hidden", !isVisible);
+    updateDock();
   }
 
   function promptForProfile() {
@@ -97,6 +113,29 @@
 
   function setNotes(key, notes) {
     notesStore.notes[key] = Array.isArray(notes) ? notes : [];
+  }
+
+  function defaultPosition(index) {
+    return {
+      x: Math.min(76, 58 + (index % 3) * 7),
+      y: Math.min(78, 10 + (index % 5) * 11)
+    };
+  }
+
+  function notePosition(note, index) {
+    if (note.position && Number.isFinite(note.position.x) && Number.isFinite(note.position.y)) {
+      return {
+        x: Math.max(1, Math.min(88, note.position.x)),
+        y: Math.max(1, Math.min(88, note.position.y))
+      };
+    }
+
+    return defaultPosition(index);
+  }
+
+  function applyStickyPosition(card, position) {
+    card.style.left = position.x + "%";
+    card.style.top = position.y + "%";
   }
 
   function formatDate(value) {
@@ -176,13 +215,15 @@
   function addNote(tool, text) {
     var activeProfile = ensureProfile(tool);
     if (!activeProfile || sharedStatus !== "ready") return;
+    var position = defaultPosition(notesFor(tool.key).length);
 
     tool.submit.disabled = true;
     apiRequest("POST", {
       sectionKey: tool.key,
       author: activeProfile.name,
       hue: activeProfile.hue,
-      text: text
+      text: text,
+      position: position
     })
       .then(function (payload) {
         notesFor(tool.key).push(payload.note);
@@ -196,21 +237,35 @@
       });
   }
 
-  function updateNote(tool, note, text) {
-    if (!text || sharedStatus !== "ready") return;
-    apiRequest("PATCH", {
+  function patchNote(tool, note, body) {
+    if (sharedStatus !== "ready") return Promise.resolve();
+    return apiRequest("PATCH", Object.assign({
       sectionKey: tool.key,
-      id: note.id,
-      text: text
-    })
+      id: note.id
+    }, body))
       .then(function (payload) {
         notesStore.notes[tool.key] = notesFor(tool.key).map(function (item) {
           return item.id === note.id ? payload.note : item;
         });
         renderTool(tool);
-      })
+        return payload.note;
+      });
+  }
+
+  function updateNote(tool, note, text) {
+    if (!text || sharedStatus !== "ready") return;
+    patchNote(tool, note, { text: text })
       .catch(function (error) {
         setSharedStatus("offline", error.message || "Comment was not updated.");
+      });
+  }
+
+  function updateNotePosition(tool, note, position) {
+    if (sharedStatus !== "ready") return;
+    note.position = position;
+    patchNote(tool, note, { position: position })
+      .catch(function (error) {
+        setSharedStatus("offline", error.message || "Sticky note position was not saved.");
       });
   }
 
@@ -297,10 +352,115 @@
     return card;
   }
 
+  function renderStickyNote(tool, note, index) {
+    var card = makeElement("article", "shf-sticky-note");
+    var position = notePosition(note, index);
+    card.style.setProperty("--note-hue", note.hue || hueForName(note.author || "Reviewer"));
+    card.dataset.noteId = note.id;
+    applyStickyPosition(card, position);
+
+    var grip = makeElement("div", "shf-sticky-grip");
+    grip.appendChild(makeElement("span", "shf-note-avatar", initialsForName(note.author || "Reviewer")));
+    grip.appendChild(makeElement("strong", "shf-note-name", note.author || "Reviewer"));
+    grip.appendChild(makeElement("span", "shf-sticky-drag-label", "Drag"));
+
+    var body = makeElement("p", "shf-note-body", note.text);
+    var controls = makeElement("div", "shf-note-controls");
+    var edit = makeElement("button", "shf-notes-delete", "Edit");
+    var remove = makeElement("button", "shf-notes-delete", "Delete");
+    edit.type = "button";
+    remove.type = "button";
+    controls.appendChild(edit);
+    controls.appendChild(remove);
+
+    edit.addEventListener("click", function () {
+      var text = window.prompt("Edit this comment for everyone:", note.text);
+      if (text === null) return;
+      updateNote(tool, note, text.trim());
+    });
+
+    remove.addEventListener("click", function () {
+      deleteNote(tool, note.id);
+    });
+
+    card.appendChild(grip);
+    card.appendChild(body);
+    card.appendChild(controls);
+    makeDraggable(tool, note, card);
+    return card;
+  }
+
+  function makeDraggable(tool, note, card) {
+    var state = null;
+
+    function startDrag(event) {
+      if (state) return;
+      var point = event.touches && event.touches[0] ? event.touches[0] : event;
+      if ((event.button !== undefined && event.button !== 0) || event.target.closest("button, textarea, input, a")) return;
+      var sectionRect = tool.section.getBoundingClientRect();
+      var cardRect = card.getBoundingClientRect();
+
+      state = {
+        sectionRect: sectionRect,
+        offsetX: point.clientX - cardRect.left,
+        offsetY: point.clientY - cardRect.top,
+        moved: false
+      };
+
+      card.classList.add("is-dragging");
+      if (event.pointerId !== undefined && card.setPointerCapture) {
+        card.setPointerCapture(event.pointerId);
+      }
+      event.preventDefault();
+    }
+
+    function moveDrag(event) {
+      if (!state) return;
+      var point = event.touches && event.touches[0] ? event.touches[0] : event;
+      var x = ((point.clientX - state.sectionRect.left - state.offsetX) / state.sectionRect.width) * 100;
+      var y = ((point.clientY - state.sectionRect.top - state.offsetY) / state.sectionRect.height) * 100;
+      var position = {
+        x: Math.max(1, Math.min(88, x)),
+        y: Math.max(1, Math.min(88, y))
+      };
+
+      state.moved = true;
+      note.position = position;
+      applyStickyPosition(card, position);
+      event.preventDefault();
+    }
+
+    function endDrag(event) {
+      if (!state) return;
+      if (event.pointerId !== undefined && card.releasePointerCapture) {
+        card.releasePointerCapture(event.pointerId);
+      }
+      card.classList.remove("is-dragging");
+      if (state.moved) updateNotePosition(tool, note, note.position);
+      state = null;
+    }
+
+    card.addEventListener("pointerdown", startDrag);
+    card.addEventListener("pointermove", moveDrag);
+    card.addEventListener("pointerup", endDrag);
+    card.addEventListener("mousedown", startDrag);
+    window.addEventListener("mousemove", moveDrag);
+    window.addEventListener("mouseup", endDrag);
+    card.addEventListener("touchstart", startDrag, { passive: false });
+    window.addEventListener("touchmove", moveDrag, { passive: false });
+    window.addEventListener("touchend", endDrag);
+
+    card.addEventListener("pointercancel", function () {
+      card.classList.remove("is-dragging");
+      state = null;
+    });
+  }
+
   function renderTool(tool) {
     var notes = notesFor(tool.key);
     tool.count.textContent = String(notes.length);
     tool.list.replaceChildren();
+    tool.stickyLayer.replaceChildren();
     tool.status.textContent = sharedMessage;
     tool.status.dataset.status = sharedStatus;
     tool.submit.disabled = sharedStatus !== "ready";
@@ -313,6 +473,10 @@
         tool.list.appendChild(renderNote(tool, note));
       });
     }
+
+    notes.forEach(function (note, index) {
+      tool.stickyLayer.appendChild(renderStickyNote(tool, note, index));
+    });
 
     if (profile) {
       tool.identity.style.setProperty("--note-hue", profile.hue);
@@ -332,6 +496,7 @@
   function createTool(section) {
     var key = noteKey(section);
     var wrapper = makeElement("div", "shf-notes-tool");
+    var stickyLayer = makeElement("div", "shf-sticky-layer");
     wrapper.dataset.sectionNotes = key;
 
     var toolbar = makeElement("div", "shf-notes-toolbar");
@@ -392,6 +557,7 @@
       section: section,
       key: key,
       wrapper: wrapper,
+      stickyLayer: stickyLayer,
       count: count,
       list: list,
       status: status,
@@ -429,7 +595,10 @@
 
     tools.push(tool);
     renderTool(tool);
-    return wrapper;
+    return {
+      wrapper: wrapper,
+      stickyLayer: stickyLayer
+    };
   }
 
   function mountTool(section) {
@@ -439,44 +608,63 @@
 
     var mount = section.querySelector(":scope > .container, :scope > .container-wide") || section;
     var heading = mount.querySelector(":scope > h1, :scope > h2, :scope > h3, :scope > h4");
-    var tool = createTool(section);
+    var toolParts = createTool(section);
+
+    section.appendChild(toolParts.stickyLayer);
 
     if (heading && heading.nextSibling) {
-      mount.insertBefore(tool, heading.nextSibling);
+      mount.insertBefore(toolParts.wrapper, heading.nextSibling);
     } else if (heading) {
-      mount.appendChild(tool);
+      mount.appendChild(toolParts.wrapper);
     } else {
-      mount.insertBefore(tool, mount.firstChild);
+      mount.insertBefore(toolParts.wrapper, mount.firstChild);
     }
   }
 
-  function updateLoginPill() {
-    if (!loginPill) return;
-    loginPill.replaceChildren();
-
-    var label = makeElement("span", null, "Reviewer");
-    var name = makeElement("strong", null, profile && profile.name ? profile.name : "Not set");
-    var button = makeElement("button", "shf-notes-identity", profile ? "Switch" : "Sign in");
-    button.type = "button";
-    button.addEventListener("click", promptForProfile);
-
-    if (profile) loginPill.style.setProperty("--note-hue", profile.hue);
-    loginPill.appendChild(label);
-    loginPill.appendChild(name);
-    loginPill.appendChild(button);
+  function updateDock() {
+    if (!dock) return;
+    dockName.textContent = profile && profile.name ? profile.name : "Not set";
+    dockProfileButton.textContent = profile ? "Switch" : "Sign in";
+    if (profile) {
+      dock.style.setProperty("--note-hue", profile.hue);
+    } else {
+      dock.style.removeProperty("--note-hue");
+    }
+    visibilitySwitch.setAttribute("aria-checked", notesVisible ? "true" : "false");
+    visibilitySwitch.textContent = notesVisible ? "Notes on" : "Notes off";
   }
 
-  function mountLoginPill() {
-    loginPill = makeElement("div", "shf-notes-login");
-    document.body.appendChild(loginPill);
-    updateLoginPill();
+  function mountDock() {
+    dock = makeElement("div", "shf-notes-dock");
+    var identity = makeElement("div", "shf-notes-dock-identity");
+    var label = makeElement("span", null, "Reviewer");
+    dockName = makeElement("strong", null, profile && profile.name ? profile.name : "Not set");
+    dockProfileButton = makeElement("button", "shf-notes-identity", profile ? "Switch" : "Sign in");
+    dockProfileButton.type = "button";
+    dockProfileButton.addEventListener("click", promptForProfile);
+
+    visibilitySwitch = makeElement("button", "shf-notes-switch");
+    visibilitySwitch.type = "button";
+    visibilitySwitch.setAttribute("role", "switch");
+    visibilitySwitch.addEventListener("click", function () {
+      setNotesVisible(!notesVisible);
+    });
+
+    identity.appendChild(label);
+    identity.appendChild(dockName);
+    identity.appendChild(dockProfileButton);
+    dock.appendChild(identity);
+    dock.appendChild(visibilitySwitch);
+    document.body.appendChild(dock);
+    updateDock();
   }
 
   function init() {
     var sections = Array.prototype.slice.call(document.querySelectorAll(SECTION_SELECTOR));
     sections.forEach(mountTool);
     if (sections.length) {
-      mountLoginPill();
+      setNotesVisible(notesVisible);
+      mountDock();
       fetchSharedNotes();
     }
   }

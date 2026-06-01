@@ -21,6 +21,17 @@ function normalizeBody(value) {
   return String(value || '').trim().slice(0, MAX_NOTE_LENGTH);
 }
 
+function normalizePosition(value) {
+  if (!value || typeof value !== 'object') return null;
+  const x = Number(value.x);
+  const y = Number(value.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return {
+    x: Math.max(1, Math.min(99, x)),
+    y: Math.max(1, Math.min(99, y)),
+  };
+}
+
 function hueForName(name) {
   let hash = 0;
   for (let index = 0; index < name.length; index += 1) {
@@ -51,7 +62,7 @@ function blobText(blob) {
 }
 
 async function readNote(pathname) {
-  const blob = await get(pathname, { access: 'private' });
+  const blob = await get(pathname, { access: 'private', useCache: false });
   const text = await blobText(blob);
   if (!text) return null;
   const note = JSON.parse(text);
@@ -103,19 +114,6 @@ async function readSelectedNotes(keys) {
   }
 
   return selected;
-}
-
-async function writeStore(store) {
-  await put(STORE_PATH, JSON.stringify(store, null, 2), {
-    access: 'private',
-    allowOverwrite: true,
-    contentType: 'application/json; charset=utf-8',
-  });
-}
-
-function sectionNotes(store, sectionKey) {
-  if (!store.notes[sectionKey]) store.notes[sectionKey] = [];
-  return store.notes[sectionKey];
 }
 
 async function readJsonBody(request) {
@@ -183,6 +181,7 @@ export default async function handler(request, response) {
     const sectionKey = normalizeText(body.sectionKey, MAX_SECTION_KEY_LENGTH);
     const author = normalizeText(body.author, MAX_AUTHOR_LENGTH);
     const text = normalizeBody(body.text);
+    const position = normalizePosition(body.position);
 
     if (!sectionKey || !author || !text) {
       return sendJson(response, { ok: false, error: 'Missing sectionKey, author, or text.' }, 400);
@@ -198,6 +197,7 @@ export default async function handler(request, response) {
       author,
       hue: Number.isFinite(body.hue) ? body.hue : hueForName(author),
       text,
+      position,
       createdAt: new Date().toISOString(),
       updatedAt: null,
     };
@@ -212,8 +212,10 @@ export default async function handler(request, response) {
     const id = normalizeText(body.id, 160);
     const text = normalizeBody(body.text);
     const author = normalizeText(body.author, MAX_AUTHOR_LENGTH);
+    const hasText = Object.prototype.hasOwnProperty.call(body, 'text');
+    const hasPosition = Object.prototype.hasOwnProperty.call(body, 'position');
 
-    if (!sectionKey || !id || !text) {
+    if (!sectionKey || !id || (hasText && !text) || (!hasText && !hasPosition)) {
       return sendJson(response, { ok: false, error: 'Missing note or replacement text.' }, 400);
     }
 
@@ -222,10 +224,13 @@ export default async function handler(request, response) {
       return sendJson(response, { ok: false, error: 'Missing note or replacement text.' }, 400);
     }
 
-    note.text = text;
+    if (hasText) note.text = text;
     if (author) {
       note.author = author;
       note.hue = Number.isFinite(body.hue) ? body.hue : hueForName(author);
+    }
+    if (hasPosition) {
+      note.position = normalizePosition(body.position);
     }
     note.updatedAt = new Date().toISOString();
     await writeNote(sectionKey, note);
