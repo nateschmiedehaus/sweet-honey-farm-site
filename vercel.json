@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/section-notes.js": {
+      "maxDuration": 10
+    }
+  }
+}

@@ -826,7 +826,21 @@ exports.init = init;
             const templateConfig = {
                 rememberExpirationKey: "staticrypt_expiration",
                 rememberPassphraseKey: "staticrypt_passphrase",
-                replaceHtmlCallback: null,
+                replaceHtmlCallback: function (plainHTML) {
+                    const notesCss = '<link rel="stylesheet" href="section-notes.css">';
+                    const notesJs = '<script src="section-notes.js" defer><\/script>';
+
+                    if (!plainHTML.includes("section-notes.css")) {
+                        plainHTML = plainHTML.replace("</head>", notesCss + "\n</head>");
+                    }
+
+                    if (!plainHTML.includes("section-notes.js")) {
+                        plainHTML = plainHTML.replace("</body>", notesJs + "\n</body>");
+                    }
+
+                    document.write(plainHTML);
+                    document.close();
+                },
                 clearLocalStorageCallback: null,
             };
 

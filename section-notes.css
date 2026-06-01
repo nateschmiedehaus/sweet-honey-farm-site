@@ -1,0 +1,344 @@
+.shf-notes-section {
+  position: relative;
+}
+
+.shf-notes-tool {
+  margin: 1rem 0 1.35rem;
+  font-family: var(--font-sans, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.shf-notes-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.shf-notes-toggle,
+.shf-notes-submit,
+.shf-notes-identity,
+.shf-notes-delete {
+  appearance: none;
+  border: 1px solid rgba(29, 58, 20, 0.2);
+  background: #fff;
+  color: var(--green-deep, #1d3a14);
+  border-radius: 999px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.shf-notes-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.2rem;
+  padding: 0.42rem 0.78rem;
+  box-shadow: 0 8px 22px rgba(29, 58, 20, 0.08);
+}
+
+.shf-notes-count {
+  min-width: 1.45rem;
+  height: 1.45rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--honey, #c8892a);
+  color: #fff;
+  font-size: 0.72rem;
+}
+
+.shf-notes-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--ink-light, #6b5b47);
+}
+
+.shf-notes-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  background: hsl(var(--note-hue, 38), 70%, 42%);
+}
+
+.shf-notes-panel {
+  display: none;
+  max-width: 760px;
+  margin-top: 0.8rem;
+  border: 1px solid rgba(29, 58, 20, 0.14);
+  border-radius: 8px;
+  background: rgba(253, 251, 247, 0.96);
+  box-shadow: 0 18px 42px rgba(29, 58, 20, 0.12);
+  overflow: hidden;
+}
+
+.shf-notes-tool.is-open .shf-notes-panel {
+  display: block;
+}
+
+.section-dark .shf-notes-panel,
+.dossier-hero .shf-notes-panel {
+  background: rgba(253, 251, 247, 0.98);
+  color: var(--ink, #1a1410);
+}
+
+.section-dark .shf-note-body,
+.section-dark .shf-notes-empty,
+.section-dark .shf-notes-person,
+.section-dark .shf-note-time,
+.dossier-hero .shf-note-body,
+.dossier-hero .shf-notes-empty,
+.dossier-hero .shf-notes-person,
+.dossier-hero .shf-note-time {
+  color: var(--ink-light, #6b5b47);
+}
+
+.section-dark .shf-note-name,
+.dossier-hero .shf-note-name {
+  color: var(--ink, #1a1410);
+}
+
+.shf-notes-list {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem;
+}
+
+.shf-notes-status {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid rgba(29, 58, 20, 0.12);
+  color: var(--ink-light, #6b5b47);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.shf-notes-status[data-status="ready"] {
+  color: var(--green-mid, #2e5420);
+}
+
+.shf-notes-status[data-status="offline"] {
+  color: #9a3412;
+}
+
+.shf-notes-empty {
+  margin: 0;
+  color: var(--ink-light, #6b5b47);
+}
+
+.shf-note {
+  border-left: 4px solid hsl(var(--note-hue, 38), 70%, 42%);
+  border-radius: 6px;
+  background: #fff;
+  padding: 0.75rem 0.85rem;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+.shf-note-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.45rem;
+}
+
+.shf-note-controls {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.shf-note-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.shf-note-avatar {
+  width: 1.65rem;
+  height: 1.65rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: hsl(var(--note-hue, 38), 68%, 42%);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.shf-note-name {
+  color: var(--ink, #1a1410);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.shf-note-time {
+  color: var(--ink-light, #6b5b47);
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+.shf-note-body {
+  margin: 0;
+  color: var(--ink-mid, #3d3228);
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.shf-note-edit {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.is-hidden {
+  display: none !important;
+}
+
+.shf-notes-form {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  border-top: 1px solid rgba(29, 58, 20, 0.12);
+  background: rgba(242, 236, 225, 0.54);
+}
+
+.shf-notes-name-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.28fr) minmax(180px, 1fr);
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.shf-notes-name-row.is-hidden {
+  display: none;
+}
+
+.shf-notes-name-row label {
+  color: var(--ink-light, #6b5b47);
+  font-weight: 700;
+}
+
+.shf-notes-input,
+.shf-notes-name-input {
+  min-height: 5.25rem;
+  width: 100%;
+  border: 1px solid rgba(29, 58, 20, 0.18);
+  border-radius: 7px;
+  background: #fff;
+  color: var(--ink, #1a1410);
+  font: inherit;
+  padding: 0.75rem;
+}
+
+.shf-notes-name-input {
+  min-height: 2.45rem;
+  padding: 0.45rem 0.65rem;
+}
+
+.shf-notes-input {
+  resize: vertical;
+}
+
+.shf-notes-input:focus,
+.shf-notes-name-input:focus {
+  outline: 3px solid rgba(200, 137, 42, 0.22);
+  border-color: var(--honey, #c8892a);
+}
+
+.shf-notes-input:disabled,
+.shf-notes-name-input:disabled,
+.shf-notes-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.shf-notes-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.shf-notes-submit,
+.shf-notes-identity {
+  padding: 0.42rem 0.85rem;
+}
+
+.shf-notes-submit {
+  background: var(--green-deep, #1d3a14);
+  color: #fff;
+  border-color: var(--green-deep, #1d3a14);
+}
+
+.shf-notes-delete {
+  padding: 0.18rem 0.48rem;
+  border-color: rgba(139, 94, 26, 0.22);
+  color: var(--honey-dark, #8b5e1a);
+  font-size: 0.72rem;
+}
+
+.shf-notes-login {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  max-width: calc(100vw - 2rem);
+  border: 1px solid rgba(29, 58, 20, 0.18);
+  border-radius: 999px;
+  background: rgba(253, 251, 247, 0.96);
+  box-shadow: 0 18px 40px rgba(29, 58, 20, 0.2);
+  color: var(--ink-mid, #3d3228);
+  font-family: var(--font-sans, Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+  font-size: 0.8rem;
+  padding: 0.45rem 0.55rem 0.45rem 0.7rem;
+}
+
+.shf-notes-login strong {
+  color: var(--ink, #1a1410);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .shf-notes-tool {
+    font-size: 0.8rem;
+  }
+
+  .shf-notes-panel {
+    max-width: 100%;
+  }
+
+  .shf-note-head,
+  .shf-note-controls,
+  .shf-notes-actions,
+  .shf-notes-name-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .shf-notes-name-row {
+    display: flex;
+  }
+
+  .shf-note-time {
+    white-space: normal;
+  }
+
+  .shf-notes-login {
+    position: static;
+    max-width: none;
+    margin: 1.25rem;
+    border-radius: 8px;
+    justify-content: space-between;
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "sweet-honey-farm-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check section-notes.js && node --check api/section-notes.js"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.4.0"
+  }
+}
